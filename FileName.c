@@ -1,200 +1,149 @@
 #define _CRT_SECURE_NO_WARNINGS
-#define ERROR_MEMORY_ALLOCATION -1
-#define ERROR_READING_FILE -2
-#define ERROR_READING_POL -3
-#define BUFFER_SIZE 1024
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
+#define ERROR_FILE_NOT_FOUND -1
+#define ERROR_FILE_FORMAT -2
+#define ERROR_MEM_ALL -3
+#define SIZE_BUFFER 1024
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-typedef struct polinom* pol;
+typedef struct Node* pok;
 
-typedef struct polinom {
-	int exp, coef;
-	pol next;
-}polinom;
+typedef struct Node {
+    double number;
+    pok next;
+} Node;
 
-pol createEl(int, int);
+pok createEl(double);
 
-int scanFile(pol, pol);
+int scanFile(pok);
 
-int sumPol(pol, pol, pol);
+void static checkError(int err) {
+    switch (err) {
+    case ERROR_FILE_NOT_FOUND:
+        printf("File not found.\n");
+        break;
+    case ERROR_FILE_FORMAT:
+        printf("File format is wrong.\n");
+        break;
+    case ERROR_MEM_ALL:
+        printf("Memory allocation error.\n");
+        break;
+    }
+}
 
-int mulPol(pol, pol, pol);
+void calcPost(char, pok);
 
-int ispis(pol);
+void deleteEl(pok);
 
-int delete(pol);
-
-int sortedEntry(pol, int, int);
+void printPost(pok);
 
 int main() {
-	polinom head1, head2, head3;
-	head1.next = NULL;
-	head2.next = NULL;
-	head3.next = NULL;
+    Node head = { .next = NULL };
 
-	scanFile(&head1, &head2);
-
-	printf("Prvi polinom: ");
-	ispis(head1.next);
-	printf("Prvi polinom: ");
-	ispis(head2.next);
-	printf("Umnozak polinoma: ");
-	mulPol(head1.next, head2.next, &head3);
-	ispis(head3.next);
-	delete(&head3);
-	printf("Suma polinoma: ");
-	sumPol(head1.next, head2.next, &head3);
-	ispis(head3.next);
-
-	return 0;
+    scanFile(&head);
+    printf("Result: ");
+    printPost(head.next);
+    return EXIT_SUCCESS;
 }
 
-pol createEl(int coef, int exp) {
-	pol Q = (pol)malloc(sizeof(polinom));
-	if (Q == NULL) {
-		printf("Greska u alociranju memorije.\n");
-		return NULL;
-	}
-	Q->coef = coef;
-	Q->exp = exp;
-	Q->next = NULL;
-	return Q;
+int scanFile(pok pos) {
+    FILE* fp = NULL;
+    pok Q = NULL;
+    double temp;
+    char* buffer;
+    char operation;
+    int byteSize, num = 0, op_c = 0;
+    fp = fopen("postfix.txt", "r");
+    if (fp == NULL) {
+        checkError(ERROR_FILE_NOT_FOUND);
+        return ERROR_FILE_NOT_FOUND;
+    };
+
+    buffer = (char*)malloc(sizeof(char) * SIZE_BUFFER);
+    if (buffer == NULL) {
+        checkError(ERROR_MEM_ALL);
+        return ERROR_MEM_ALL;
+    }
+    while (!feof(fp)) {
+        fgets(buffer, SIZE_BUFFER, fp);
+        while (strlen(buffer) > 0) {
+            num = sscanf(buffer, "%lf %n", &temp, &byteSize);
+            op_c = sscanf(buffer, "%c %n", &operation, &byteSize);
+            if (num == 0) {
+                calcPost(operation, pos);
+            }
+            else if (num == 1) {
+                Q = createEl(temp);
+                Q->next = pos->next;
+                pos->next = Q;
+            }
+            else {
+                checkError(ERROR_FILE_FORMAT);
+                return ERROR_FILE_FORMAT;
+            }
+            buffer = buffer + byteSize;
+        }
+    }
+    return EXIT_SUCCESS;
 }
 
-int scanFile(pol First, pol Second) {
-	FILE* fp = NULL;
-	char* buffer;
-	int coef, exp, byteSize, count, red = 0;
-	fp = fopen("polinomi.txt", "r");
-	if (fp == NULL) {
-		printf("Greska u citanju filea.\n");
-		return ERROR_READING_FILE;
-	}
-
-	buffer = (char*)malloc(sizeof(char) * BUFFER_SIZE);
-	if (buffer == NULL) {
-		printf("Greska u alociranju memorije.\n");
-		return ERROR_MEMORY_ALLOCATION;
-	}
-
-	while (!feof(fp)) {
-		red++;
-		fgets(buffer, BUFFER_SIZE, fp);
-		while (strlen(buffer) > 0) {
-			count = sscanf(buffer, "%d %d %n", &coef, &exp, &byteSize);
-			if (count != 2) {
-				printf("Greska u citanju polinoma.\n");
-				return ERROR_READING_POL;
-			}
-			if (red == 1) {
-				sortedEntry(First, coef, exp);
-			}
-			else {
-				sortedEntry(Second, coef, exp);
-			}
-
-			buffer = buffer + byteSize;
-		}
-	}
-
-	return EXIT_SUCCESS;
+pok createEl(double data) {
+    pok Q = NULL;
+    Q = (pok)malloc(sizeof(Node));
+    if (Q == NULL) {
+        checkError(ERROR_MEM_ALL);
+        return NULL;
+    }
+    Q->number = data;
+    Q->next = NULL;
+    return Q;
 }
 
-int ispis(pol Q) {
-	while (Q != NULL) {
-		printf("%dx^%d", Q->coef, Q->exp);
-		if (Q->next != NULL) {
-			printf(" + ");
-		}
-		Q = Q->next;
-	}
-	printf("\n");
-	return EXIT_SUCCESS;
+void calcPost(char op, pok pos) {
+    int count = 1;
+    double num1, num2, result;
+    num2 = pos->next->number;
+    num1 = pos->next->next->number;
+
+    switch (op) {
+    case '+':
+        result = num1 + num2;
+        pos->next->next->number = result;
+        deleteEl(pos);
+        break;
+    case '-':
+        result = num1 - num2;
+        pos->next->next->number = result;
+        deleteEl(pos);
+        break;
+    case '*':
+        result = num1 * num2;
+        pos->next->next->number = result;
+        deleteEl(pos);
+        break;
+    case '/':
+        result = num1 / num2;
+        pos->next->next->number = result;
+        deleteEl(pos);
+        break;
+    default:
+        return;
+        break;
+    }
 }
 
-int sortedEntry(pol Q, int c, int e) {
-	pol temp = createEl(c, e);
-	if (temp == NULL) {
-		printf("Greska u alociranju memorije.\n");
-		return ERROR_MEMORY_ALLOCATION;
-	}
-
-	while (Q->next != NULL && Q->next->exp > temp->exp) {
-		Q = Q->next;
-	}
-
-	if (Q->next == NULL) {
-		temp->next = Q->next;
-		Q->next = temp;
-	}
-
-	else if (Q->next != NULL && Q->next->exp < temp->exp) {
-		temp->next = Q->next;
-		Q->next = temp;
-	}
-
-	else if (Q->next != NULL && Q->next->exp == temp->exp) {
-		Q->next->coef += temp->coef;
-	}
-
-	return EXIT_SUCCESS;
+void printPost(pok pos) {
+    while (pos != NULL) {
+        printf("%lf\n", pos->number);
+        pos = pos->next;
+    }
 }
 
-int sumPol(pol p1, pol p2, pol p3) {
-	while (p1 != NULL && p2 != NULL) {
-		if (p1->exp == p2->exp) {
-			sortedEntry(p3, p1->coef + p2->coef, p1->exp);
-			p1 = p1->next;
-			p2 = p2->next;
-		}
-		else if (p1->exp > p2->exp) {
-			sortedEntry(p3, p1->coef, p1->exp);
-			p1 = p1->next;
-		}
-		else if (p1->exp < p2->exp) {
-			sortedEntry(p3, p2->coef, p2->exp);
-			p2 = p2->next;
-		}
-		if (p2 == NULL) {
-			while (p1 != NULL) {
-				sortedEntry(p3, p1->coef, p1->exp);
-				p1 = p1->next;
-			}
-		}
-		else if (p1 == NULL) {
-			while (p2 != NULL) {
-				sortedEntry(p3, p2->coef, p2->exp);
-				p2 = p2->next;
-			}
-		}
-	}
-	return EXIT_SUCCESS;
-}
-
-int mulPol(pol p1, pol p2, pol p3) {
-	pol temp = p2;
-	while (p1 != NULL) {
-		while (temp != NULL) {
-			sortedEntry(p3, p1->coef * temp->coef, p1->exp + temp->exp);
-			temp = temp->next;
-		}
-		p1 = p1->next;
-		temp = p2;
-	}
-	return EXIT_SUCCESS;
-}
-
-int delete(pol p) {
-	pol temp = p->next;
-	pol deleteEl = NULL;
-	while (temp != NULL) {
-		deleteEl = temp;
-		temp = temp->next;
-		free(deleteEl);
-	}
-	p->next = NULL;
-
-	return EXIT_SUCCESS;
+void deleteEl(pok num1) {
+    pok temp;
+    temp = num1->next;
+    num1->next = temp->next;
+    free(temp);
 }
