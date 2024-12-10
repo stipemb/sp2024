@@ -1,0 +1,5 @@
+2023-6-9
+jabuka 2 0.8
+rukavice 10 0.2
+batak 3 3.1
+rukavice 6 0.2
