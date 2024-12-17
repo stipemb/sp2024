@@ -1,0 +1,3 @@
+﻿  vj7.c
+C:\Users\Stipe\Desktop\STRUKTURE\sp2024\vj7\vj7.c(34,20): warning C4047: 'initializing': 'char' differs in levels of indirection from 'void *'
+  vj7.vcxproj -> C:\Users\Stipe\Desktop\STRUKTURE\sp2024\vj7\x64\Debug\vj7.exe
